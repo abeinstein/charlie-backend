@@ -21,9 +21,6 @@ EXAMPLE_PICKLE_FILE = 'pickles/sql_output.pkl'
 KEYS = ["crime_id", "case_id", "date", "block", "crime_type", "beat", "district", 
 	"year", "lat", "long"]
 
-
-
-
 class Crime():
 	def __init__(self, params):
 		''' Initializes a Crime object. Params is a dictionary with the following keys:
@@ -164,16 +161,12 @@ def calculate_probability(total_count, inter):
 	prob = poisson_sf(count_per_month, 1) # survival function (probability of at least 1 crime)
 
 
-	# Simple weighting based on Broken Windows Theory
+	# Simple weighting scheme based on Broken Windows Theory
 	num_open_reports = inter.num_311_service_requests
 	if (num_open_reports > 3):
 		prob *= 2
-	elif (num_open_reports > 1):
+	elif (num_open_reports > 0):
 		prob *= 1.5
-	elif (num_open_reports == 0):
-		prob *= 0.8
-
-
 	
 	return prob
 
