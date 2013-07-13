@@ -3,15 +3,21 @@ import pickle
 import pprint
 import sqlite3
 import time
+import os
+import psycopg2
+import urlparse
 from collections import defaultdict
+from operator import itemgetter
 from scipy.stats import poisson
 
 DATABASE_NAME = 'crimes.db'
 TABLE_NAME = 'crimes'
-NUM_WEEKS = 28
+NUM_WEEKS = 60
 EXAMPLE_PICKLE_FILE = 'pickles/sql_output.pkl'
 KEYS = ["crime_id", "case_id", "date", "block", "crime_type", "beat", "district", 
 	"year", "lat", "long"]
+
+
 
 
 class Crime():
@@ -46,7 +52,20 @@ class Crime():
 
 
 def init_database():
-	conn = sqlite3.connect(DATABASE_NAME)
+	urlparse.uses_netloc.append("postgres")
+	if "DATABASE_URL" in os.environ: # production
+		url = urlparse.urlparse(os.environ["DATABASE_URL"])
+
+		conn = psycopg2.connect(
+		    database=url.path[1:],
+		    user=url.username,
+		    password=url.password,
+		    host=url.hostname,
+		    port=url.port
+		)
+	else: # development
+		conn = psycopg2.connect("dbname=crimes user=abeinstein")
+
 	c = conn.cursor()
 	return c
 
@@ -58,10 +77,11 @@ def get_data(beat):
 		# TODO
 		pass
 	else: 
-		sql_select = "SELECT * FROM %s WHERE beat=%d AND year=2013" % (TABLE_NAME, int(beat))
+		#sql_select = "SELECT * FROM %s WHERE beat=%d AND year=2013" % (TABLE_NAME, int(beat))
 
 		crimes_in_beat = []
-		for row in c.execute(sql_select):
+		c.execute("SELECT * FROM crimes WHERE beat=%s", (beat,))
+		for row in c:
 			params = {}
 			for i in range(len(row)):
 				params[KEYS[i]] = row[i]
@@ -83,12 +103,16 @@ def get_probabilities(crimes):
 			count = counts[hour][pos]
 			print count
 			# this is implictily applying the Poisson distribution MLE (which is just the average)
-			# Will change later to weight more recent weeks
-			count_per_week = float(count) / NUM_WEEKS 
-			p_dist = poisson(count_per_week)
+			# Will change later to weight more recent months
+			count_per_month = float(count) / NUM_MONTHS 
+			p_dist = poisson(count_per_month)
 			prob = p_dist.sf(1) # probability of at least 1 crime occuring
 
 			probs[hour].append({"Probability": prob, "Latitude": pos[0], "Longitude": pos[1]})
+
+	# Now, sort by decreasing probability
+	for hour in probs:
+		probs[hour] = sorted(probs[hour], key=itemgetter("Probability"), reverse=True)
 
 	return probs
 
@@ -135,7 +159,7 @@ def get_cached_data(beat):
 
 
 if __name__ == "__main__":
-	print get_data(2523)
+	#print get_data(2523)
 	# #c = init_database()
 	# # rows = []
 	# # for row in c.execute("SELECT * FROM crimes WHERE beat=2523 AND YEAR=2013"):
@@ -143,8 +167,7 @@ if __name__ == "__main__":
 	# # pickle.dump(rows, open(EXAMPLE_PICKLE_FILE, 'wb'))
 	# rows = pickle.load(open(EXAMPLE_PICKLE_FILE, 'rb'))
 	# crimes_in_beat = []
-	keys = ["crime_id", "case_id", "date", "block", "crime_type", "beat", "district", 
-	"year", "lat", "long"]
+
 	# for row in rows:
 	# 	params = {}
 	# 	for i in range(len(row)):
