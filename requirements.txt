@@ -8,3 +8,4 @@ itsdangerous==0.22
 numpy==1.6.2
 psycopg2==2.5.1
 wsgiref==0.1.2
+-r requirements2.txt
