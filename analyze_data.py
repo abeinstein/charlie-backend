@@ -7,9 +7,10 @@ import os
 import psycopg2
 import urlparse
 import urllib2
+import math
 from collections import defaultdict
 from operator import itemgetter
-from scipy.stats import poisson
+#from scipy.stats import poisson Heroku wouldn't play nicely with scipy :(
 
 DATABASE_NAME = 'crimes.db'
 TABLE_NAME = 'crimes'
@@ -115,7 +116,7 @@ def get_probabilities(crimes):
 	return probs
 
 
-def calculate_probability(total_count, ):
+def calculate_probability(total_count):
 	''' Calculates the probability of a crime happening on a given intersection and hour of day,
 	from of crimes since 2008.
 	Implicitly uses the Poisson distribution MLE, but will make more explicit and assign 
@@ -123,10 +124,23 @@ def calculate_probability(total_count, ):
 	'''
 	NUM_MONTHS = 60
 	count_per_month = float(total_count) / NUM_MONTHS
-	p_dist = poisson(count_per_month)
-	prob = p_dist.sf(1)
+	prob = poisson_sf(count_per_month, 1) # survival function (probability of at least 1 crime)
 	
 	return prob
+
+
+def poisson_sf(mu, k):
+	# ''' SciPy wasn't playing nicely with heroku, so this is my own implmentation of a poisson survival function.
+	# This is 1 - cdf (used for the probability of >= 1 counts)
+	# '''
+	mu = float(mu) # just making sure!
+	first_term = math.e ** (-mu)
+	second_term = 0
+	for i in range(int(math.ceil(k)) + 1):
+		second_term += (mu ** i) / (math.factorial(i))
+
+	return 1 - (first_term * second_term)
+
 	
 def get_open311_requests():
 	f = urllib2.urlopen('http://www.python.org/')
@@ -173,7 +187,7 @@ def get_cached_data(beat):
 
 
 if __name__ == "__main__":
-	pass
+	print poisson_sf(3, 1)
 	#print get_data(2523)
 	# #c = init_database()
 	# # rows = []
