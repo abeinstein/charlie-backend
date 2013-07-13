@@ -2,8 +2,9 @@ import csv
 import sqlite3
 
 CRIMES_FILE = "chicago_crimes.csv"
+DATABASE_NAME = 'crimes_small.db'
 SQL_CREATE = '''
-CREATE TABLE crimes
+CREATE TABLE crimes_small
 (
 crime_id INTEGER primary key,
 case_id VARCHAR(255),
@@ -16,7 +17,7 @@ year INTEGER,
 lat REAL,
 long REAL
 );
-'''
+''' 
 def create_table(conn):
 	''' Creates a database to hold all the crimes from 2001-2013.'''
 	c = conn.cursor()
@@ -29,17 +30,17 @@ def fill_table(conn, csv_file):
 	c = conn.cursor()
 	reader = csv.reader(csv_file)
 	header = reader.next()
+	counter = 0
 	for data in reader:
-		if (int(data[17]) >= 2008):
+		print counter
+		while (counter < 500):
 			print data[2]
 			try:
-				# NOTE TO SELF: This is suceptible to a SQL injection attack. Use sqlite3's 
-				# implementation instead. Won't have any forms though, so this is not a pressing 
-				# issue
 				values = (int(data[0]), data[1], data[2], data[3], data[5], 
 					int(data[10]), int(data[11]), int(data[17]), float(data[19]), float(data[20]))
-				c.execute('INSERT INTO crimes VALUES (?,?,?,?,?,?,?,?,?,?)', values)
+				c.execute("INSERT INTO crimes_small VALUES (?,?,?,?,?,?,?,?,?,?)", values)
 				conn.commit()
+				counter += 1
 			except sqlite3.IntegrityError as e:
 				pass
 				#print e.args[0]
@@ -53,8 +54,8 @@ def fill_table(conn, csv_file):
 
 
 if __name__ == "__main__":
-	conn = sqlite3.connect('crimes.db')
+	conn = sqlite3.connect(DATABASE_NAME)
 	# UNCOMMENT TO INITIALIZE THE TABLE
-	#create_table(conn)
+	create_table(conn)
 	with open(CRIMES_FILE, 'rb') as csv_file:
 		fill_table(conn,csv_file)
