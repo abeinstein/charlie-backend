@@ -6,6 +6,7 @@ import time
 import os
 import psycopg2
 import urlparse
+import urllib2
 from collections import defaultdict
 from operator import itemgetter
 from scipy.stats import poisson
@@ -97,17 +98,14 @@ def get_data(beat):
 
 def get_probabilities(crimes):
 	counts = get_counts(crimes)
+	open311requests = get_open311_requests()
 	probs = init_probs_dict()
 	for hour in counts:
 		for pos in counts[hour]:
-			count = counts[hour][pos]
-			print count
-			# this is implictily applying the Poisson distribution MLE (which is just the average)
-			# Will change later to weight more recent months
-			count_per_month = float(count) / NUM_MONTHS 
-			p_dist = poisson(count_per_month)
-			prob = p_dist.sf(1) # probability of at least 1 crime occuring
+			total_count = counts[hour][pos]
 
+
+			prob = calculate_probability(total_count)
 			probs[hour].append({"Probability": prob, "Latitude": pos[0], "Longitude": pos[1]})
 
 	# Now, sort by decreasing probability
@@ -117,7 +115,23 @@ def get_probabilities(crimes):
 	return probs
 
 
+def calculate_probability(total_count, ):
+	''' Calculates the probability of a crime happening on a given intersection and hour of day,
+	from of crimes since 2008.
+	Implicitly uses the Poisson distribution MLE, but will make more explicit and assign 
+	a higher weight to more recent months soon.
+	'''
+	NUM_MONTHS = 60
+	count_per_month = float(total_count) / NUM_MONTHS
+	p_dist = poisson(count_per_month)
+	prob = p_dist.sf(1)
 	
+	return prob
+	
+def get_open311_requests():
+	f = urllib2.urlopen('http://www.python.org/')
+
+
 
 # def get_counts(crimes):
 # 	counts = {}
@@ -159,6 +173,7 @@ def get_cached_data(beat):
 
 
 if __name__ == "__main__":
+	pass
 	#print get_data(2523)
 	# #c = init_database()
 	# # rows = []
